@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 
 import os
 import json
@@ -19,27 +19,25 @@ from torchvision import models, transforms
 from tqdm import tqdm
 
 
-# ============================================================
-# CONFIG
-# ============================================================
+
 
 CLEAN_DIR = (
-    "/home/cpsslab/Desktop/myriam/Traffic_Signs_2/"
-    "Clean Dataset/Myriam"
+    "/home/Traffic_Signs_2/"
+    "Clean Dataset"
 )
 
 QR_DIR = (
-    "/home/cpsslab/Desktop/myriam/Traffic_Signs_2/"
+    "/home/Traffic_Signs_2/"
     "attacked"
 )
 
 MODEL_DIR = (
-    "/home/cpsslab/Desktop/myriam/Traffic_Signs_2/"
+    "/home/Traffic_Signs_2/"
     "physical_models"
 )
 
 OUT_ROOT = (
-    "/home/cpsslab/Desktop/myriam/Traffic_Signs_2/"
+    "/home/Traffic_Signs_2/"
     "physical_pipeline"
 )
 
@@ -70,9 +68,6 @@ DEVICE = torch.device(
 )
 
 
-# ============================================================
-# MODEL CONFIG
-# ============================================================
 
 MODELS = {
 
@@ -117,10 +112,6 @@ MODELS = {
 }
 
 
-# ============================================================
-# CONDITIONS
-# ============================================================
-
 CONDITIONS = {
 
     "clean": CLEAN_DIR,
@@ -129,13 +120,7 @@ CONDITIONS = {
 }
 
 
-# ============================================================
-# PAD TO SQUARE
-#
-# IMPORTANT:
-# this matches preprocessing used when training the physical
-# classifiers.
-# ============================================================
+
 
 class PadToSquare:
 
@@ -176,12 +161,7 @@ class PadToSquare:
         )
 
 
-# ============================================================
-# DATASET
-#
-# We do NOT use torchvision ImageFolder directly because we
-# want to force the exact class mapping stored in checkpoint.
-# ============================================================
+
 
 class FixedClassDataset(Dataset):
 
@@ -282,11 +262,7 @@ class FixedClassDataset(Dataset):
             "RGB"
         )
 
-        # --------------------------------------------
-        # Same geometric preprocessing as training.
-        # Keep image in [0,1].
-        # Do NOT normalize here.
-        # --------------------------------------------
+        
 
         image = PadToSquare()(
             image
@@ -311,9 +287,6 @@ class FixedClassDataset(Dataset):
         )
 
 
-# ============================================================
-# NORMALIZATION
-# ============================================================
 
 def normalize(
     x
@@ -346,15 +319,7 @@ def normalize(
     ) / std
 
 
-# ============================================================
-# EXACT OLD WEAK AUGMENTATION 1
-#
-# Mapillary pipeline:
-#
-# slight contrast/brightness change
-# +
-# small 3x3 smoothing
-# ============================================================
+
 
 def weak_augment_1(
     x
@@ -363,9 +328,7 @@ def weak_augment_1(
     y = x.clone()
 
 
-    # --------------------------------------------
-    # brightness / contrast
-    # --------------------------------------------
+
 
     y = (
         (y - 0.5)
@@ -380,9 +343,7 @@ def weak_augment_1(
     )
 
 
-    # --------------------------------------------
-    # mild smoothing
-    # --------------------------------------------
+
 
     blur = F.avg_pool2d(
         y,
@@ -405,11 +366,6 @@ def weak_augment_1(
     )
 
 
-# ============================================================
-# EXACT OLD WEAK AUGMENTATION 2
-#
-# Used for third-pass critical-class analysis.
-# ============================================================
 
 def weak_augment_2(
     x
@@ -418,9 +374,7 @@ def weak_augment_2(
     y = x.clone()
 
 
-    # --------------------------------------------
-    # opposite mild brightness / contrast shift
-    # --------------------------------------------
+
 
     y = (
         (y - 0.5)
@@ -435,9 +389,7 @@ def weak_augment_2(
     )
 
 
-    # --------------------------------------------
-    # slightly different smoothing
-    # --------------------------------------------
+ 
 
     blur = F.avg_pool2d(
         y,
@@ -460,9 +412,6 @@ def weak_augment_2(
     )
 
 
-# ============================================================
-# FORWARD SIGNALS
-# ============================================================
 
 @torch.no_grad()
 def forward_signals(
@@ -490,11 +439,7 @@ def forward_signals(
     )
 
 
-    # --------------------------------------------
-    # same energy definition used previously
-    #
-    # higher / less negative = more suspicious
-    # --------------------------------------------
+
 
     energy = (
         -torch.logsumexp(
@@ -512,9 +457,7 @@ def forward_signals(
     )
 
 
-# ============================================================
-# BUILD MODEL
-# ============================================================
+
 
 def build_model(
     model_key,
@@ -594,9 +537,6 @@ def build_model(
     return model
 
 
-# ============================================================
-# LOAD CHECKPOINT
-# ============================================================
 
 def load_model(
     model_key
@@ -671,9 +611,7 @@ def load_model(
     )
 
 
-# ============================================================
-# EVALUATE ONE FOLDER
-# ============================================================
+
 
 @torch.no_grad()
 def eval_folder(
@@ -692,15 +630,6 @@ def eval_folder(
     )
 
 
-    # ========================================================
-    # CRITICAL CLASSES
-    #
-    # Physical dataset:
-    # STOP  = 6
-    # YIELD = 9
-    #
-    # Determine IDs from names instead of hard-coding.
-    # ========================================================
 
     if "stop" not in class_to_idx:
 
@@ -735,9 +664,6 @@ def eval_folder(
     ]
 
 
-    # ========================================================
-    # DATA
-    # ========================================================
 
     dataset = FixedClassDataset(
         img_dir,
@@ -758,9 +684,7 @@ def eval_folder(
     )
 
 
-    # ========================================================
-    # STORAGE
-    # ========================================================
+ 
 
     all_indices = []
 
@@ -807,9 +731,6 @@ def eval_folder(
     critical_total = 0
 
 
-    # ========================================================
-    # LOOP
-    # ========================================================
 
     for (
         x01,
@@ -836,10 +757,6 @@ def eval_folder(
         )
 
 
-        # ====================================================
-        # PASS 1 — ORIGINAL
-        # ====================================================
-
         (
             logits,
             pred,
@@ -851,9 +768,6 @@ def eval_folder(
         )
 
 
-        # ====================================================
-        # PASS 2 — WEAK AUGMENT 1
-        # ====================================================
 
         x_aug1 = (
             weak_augment_1(
@@ -873,9 +787,7 @@ def eval_folder(
         )
 
 
-        # --------------------------------------------
-        # 2-pass confidence drop
-        # --------------------------------------------
+        
 
         conf_drop_2 = (
             conf
@@ -884,9 +796,7 @@ def eval_folder(
         )
 
 
-        # --------------------------------------------
-        # 2-pass logit L2
-        # --------------------------------------------
+        
 
         logit_l2_2 = (
             torch.norm(
@@ -899,9 +809,7 @@ def eval_folder(
         )
 
 
-        # --------------------------------------------
-        # prediction changed?
-        # --------------------------------------------
+     
 
         changed_2 = (
             pred
@@ -910,13 +818,6 @@ def eval_folder(
         ).long()
 
 
-        # ====================================================
-        # PASS 3 — ONLY FOR BASE-PREDICTED STOP / YIELD
-        #
-        # This matches the final clean-threshold calibration
-        # logic: third-pass thresholds are calibrated on
-        # base predictions considered critical.
-        # ====================================================
 
         critical_pred_mask = (
             torch.zeros_like(
@@ -933,9 +834,7 @@ def eval_folder(
             )
 
 
-        # --------------------------------------------
-        # Default -1 = third pass not applicable
-        # --------------------------------------------
+     
 
         conf_drop_3 = (
             torch.full_like(
@@ -990,9 +889,6 @@ def eval_folder(
             ]
 
 
-            # ================================================
-            # Third inference pass
-            # ================================================
 
             x_aug2 = (
                 weak_augment_2(
@@ -1012,9 +908,6 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # Confidence drop from augmentation #1
-            # --------------------------------------------
 
             cd1 = (
                 conf_crit
@@ -1025,10 +918,6 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # Confidence drop from augmentation #2
-            # --------------------------------------------
-
             cd2 = (
                 conf_crit
                 -
@@ -1036,9 +925,7 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # maximum 3-pass confidence instability
-            # --------------------------------------------
+            
 
             conf_drop_max = (
                 torch.maximum(
@@ -1048,9 +935,7 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # logit L2 pass1-pass2
-            # --------------------------------------------
+            
 
             l21 = torch.norm(
 
@@ -1065,9 +950,7 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # logit L2 pass1-pass3
-            # --------------------------------------------
+           
 
             l22 = torch.norm(
 
@@ -1080,9 +963,6 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # maximum logit deviation
-            # --------------------------------------------
 
             l2max = torch.maximum(
                 l21,
@@ -1090,9 +970,6 @@ def eval_folder(
             )
 
 
-            # --------------------------------------------
-            # Did either transformed prediction change?
-            # --------------------------------------------
 
             changed = (
 
@@ -1130,10 +1007,6 @@ def eval_folder(
             ] = changed
 
 
-        # ====================================================
-        # CLASSIFIER ACCURACY
-        # ====================================================
-
         correct += (
             pred == y
         ).sum().item()
@@ -1144,9 +1017,6 @@ def eval_folder(
         )
 
 
-        # ====================================================
-        # SAVE BATCH
-        # ====================================================
 
         all_indices.append(
 
@@ -1242,9 +1112,6 @@ def eval_folder(
         )
 
 
-    # ========================================================
-    # CONCATENATE
-    # ========================================================
 
     dataset_index = np.concatenate(
         all_indices
@@ -1332,9 +1199,7 @@ def eval_folder(
     )
 
 
-    # ========================================================
-    # SANITY CHECK
-    # ========================================================
+  
 
     n = len(
         label
@@ -1393,9 +1258,6 @@ def eval_folder(
             )
 
 
-    # ========================================================
-    # SAVE .NPY
-    # ========================================================
 
     np.save(
         os.path.join(
@@ -1452,10 +1314,6 @@ def eval_folder(
     )
 
 
-    # --------------------------------------------------------
-    # Save first transformed pass too.
-    # Useful for debugging and consistency.
-    # --------------------------------------------------------
 
     np.save(
         os.path.join(
@@ -1484,9 +1342,6 @@ def eval_folder(
     )
 
 
-    # --------------------------------------------------------
-    # 2-pass
-    # --------------------------------------------------------
 
     np.save(
         os.path.join(
@@ -1515,9 +1370,6 @@ def eval_folder(
     )
 
 
-    # --------------------------------------------------------
-    # 3-pass
-    # --------------------------------------------------------
 
     np.save(
         os.path.join(
@@ -1555,9 +1407,7 @@ def eval_folder(
     )
 
 
-    # ========================================================
-    # STATISTICS
-    # ========================================================
+    
 
     accuracy = (
         (
@@ -1622,9 +1472,6 @@ def eval_folder(
                 * 100.0
             ),
 
-        # --------------------------------------------
-        # base inference
-        # --------------------------------------------
 
         "confidence_mean":
             float(
@@ -1652,9 +1499,7 @@ def eval_folder(
                 )
             ),
 
-        # --------------------------------------------
-        # 2-pass
-        # --------------------------------------------
+
 
         "2pass_conf_drop_mean":
             float(
@@ -1699,9 +1544,6 @@ def eval_folder(
     }
 
 
-    # ========================================================
-    # 3-PASS STATS
-    # ========================================================
 
     if valid_3.any():
 
@@ -1805,9 +1647,7 @@ def eval_folder(
         })
 
 
-    # ========================================================
-    # SAVE STATS
-    # ========================================================
+
 
     with open(
         os.path.join(
@@ -1824,9 +1664,6 @@ def eval_folder(
         )
 
 
-    # ========================================================
-    # SAVE CLASS MAP
-    # ========================================================
 
     with open(
         os.path.join(
@@ -1843,9 +1680,7 @@ def eval_folder(
         )
 
 
-    # ========================================================
-    # PRINT
-    # ========================================================
+    
 
     print("\n" + "=" * 80)
 
@@ -1959,9 +1794,7 @@ def eval_folder(
     )
 
 
-# ============================================================
-# RUN MODEL
-# ============================================================
+
 
 def run_model(
     model_key,
@@ -2056,9 +1889,7 @@ def run_model(
         )
 
 
-# ============================================================
-# CLI
-# ============================================================
+
 
 def parse_args():
 
@@ -2094,9 +1925,7 @@ def parse_args():
     return parser.parse_args()
 
 
-# ============================================================
-# MAIN
-# ============================================================
+
 
 def main():
 
